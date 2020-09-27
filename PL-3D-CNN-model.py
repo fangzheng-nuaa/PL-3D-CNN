@@ -49,3 +49,33 @@ def combine(fc1,fc2,class_num):
         fusion = tf.concat([fc1,fc2],axis=1)
         logits = tf.layers.dense(fusion,class_num)
     return logits
+
+def neighbor_add(data,row,col,cube_size=9):
+        t = cube_size // 2
+        cube = np.zeros(shape=[cube_size, cube_size, data.shape[2]])
+        for i in range(-t, t + 1):
+            for j in range(-t, t + 1):
+                if i + row < 0 or i + row >= data.shape[0] or j + col < 0 or j + col >= data.shape[1]:
+                    cube[i + t, j + t] = data[row, col]
+                else:
+                    cube[i + t, j + t] = data[i + row, j + col]
+        return cube
+
+def data_cluster(data,data_gt):
+    data_num = np.sum(data_gt!=0)
+    data_list = np.zeros(shape=(data_num,cube_size,cube_size,dim))
+    data_pixel_list = np.zeros(shape=(data_num,dim))
+    label_list = np.zeros(shape=(data_num))
+    index = 0
+    for i in range(data.shape[0]):
+        for j in range(data.shape[1]):
+            if data_gt[i, j] == 0:
+                continue
+            data_list[index] = neighbor_add(i,j,cube_size)
+            data_pixel_list[index] = data[i,j]
+            label_list[index] = data_gt[i,j]
+            index += 1
+        
+    cluster = KMeans(n_clusters=cluster_num,max_iter=10000,random_state=0,n_jobs=-1)
+    cluster.fit(data_pixel_list)
+    cluster_label = cluster.predict(data_pixel_list)
